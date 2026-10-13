@@ -21,6 +21,12 @@ class StudentCreate(BaseModel):
     email: str = Field(..., min_length=3)
     level: str = Field("новичок")
 
+class StudentUpdate(BaseModel):
+    name: Optional[str] = Field(None, min_length=1)
+    email: Optional[str] = Field(None, min_length=3)
+    level: Optional[str] = None
+    status: Optional[str] = None
+
 # --- Хранилище ---
 classes: Dict[int, dict] = {}
 next_class_id = 1
@@ -83,6 +89,10 @@ def find_class_or_404(class_id: int) -> dict:
         raise HTTPException(status_code=404, detail="Занятие не найдено")
     return classes[class_id]
 
+def find_student_or_404(dance_class: dict, student_id: int) -> dict:
+    if student_id not in dance_class["students"]:
+        raise HTTPException(status_code=404, detail="Ученик не найден")
+    return dance_class["students"][student_id]
 
 @app.get("/classes/{class_id}")
 def get_class(class_id: int):
@@ -113,3 +123,13 @@ def add_student(class_id: int, student_data: StudentCreate):
 def list_students(class_id: int):
     dance_class = find_class_or_404(class_id)
     return list(dance_class["students"].values())
+
+@app.put("/classes/{class_id}/students/{student_id}")
+def update_student(class_id: int, student_id: int, student_data: StudentUpdate):
+    dance_class = find_class_or_404(class_id)
+    student = find_student_or_404(dance_class, student_id)
+    update_data = student_data.model_dump(exclude_unset=True)
+    for key, value in update_data.items():
+        if value is not None:
+            student[key] = value
+    return student

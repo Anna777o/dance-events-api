@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from datetime import date
 from typing import Optional, Dict
-
+from fastapi import Query
 from fastapi import HTTPException, status
 from pydantic import BaseModel, Field
 
@@ -55,3 +55,22 @@ def create_class(class_data: ClassCreate):
     }
     classes[class_id] = dance_class
     return dance_class
+
+@app.get("/classes")
+def list_classes(
+    date_from: Optional[date] = Query(None),
+    date_to: Optional[date] = Query(None),
+    style: Optional[str] = Query(None)
+):
+    result = []
+    for dance_class in classes.values():
+        class_date = date.fromisoformat(dance_class["date"])
+        if date_from and class_date < date_from:
+            continue
+        if date_to and class_date > date_to:
+            continue
+        if style and style.lower() not in dance_class["style"].lower():
+            continue
+        result.append(dance_class)
+    return result
+

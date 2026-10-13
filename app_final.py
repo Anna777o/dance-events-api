@@ -16,6 +16,10 @@ class ClassCreate(BaseModel):
     studio: Optional[str] = None
     max_students: Optional[int] = Field(None, ge=1)
 
+class StudentCreate(BaseModel):
+    name: str = Field(..., min_length=1)
+    email: str = Field(..., min_length=3)
+    level: str = Field("новичок")
 
 # --- Хранилище ---
 classes: Dict[int, dict] = {}
@@ -74,3 +78,38 @@ def list_classes(
         result.append(dance_class)
     return result
 
+def find_class_or_404(class_id: int) -> dict:
+    if class_id not in classes:
+        raise HTTPException(status_code=404, detail="Занятие не найдено")
+    return classes[class_id]
+
+
+@app.get("/classes/{class_id}")
+def get_class(class_id: int):
+    return find_class_or_404(class_id)
+@app.post("/classes/{class_id}/students", status_code=status.HTTP_201_CREATED)
+def add_student(class_id: int, student_data: StudentCreate):
+    global next_student_id
+    dance_class = find_class_or_404(class_id)
+    if (
+        dance_class["max_students"] is not None
+        and len(dance_class["students"]) >= dance_class["max_students"]
+    ):
+        raise HTTPException(status_code=400, detail="Достигнуто максимальное количество учеников")
+    student_id = next_student_id
+    next_student_id += 1
+    student = {
+        "id": student_id,
+        "name": student_data.name,
+        "email": student_data.email,
+        "level": student_data.level,
+        "status": "записан"
+    }
+    dance_class["students"][student_id] = student
+    return student
+
+
+@app.get("/classes/{class_id}/students")
+def list_students(class_id: int):
+    dance_class = find_class_or_404(class_id)
+    return list(dance_class["students"].values())
